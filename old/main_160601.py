@@ -20,10 +20,6 @@
 # 0 ~ 7 : analog In, value : 0 ~ 1.0
 # adddress : /ch3
 # 0 ~ 2 : x, y, z acc
-# 3 : tap
-# 4 ~ 6 : x, y, z speed
-# 7 speed
-
 import sys
 import time
 
@@ -34,13 +30,9 @@ import sonilab.adc as adc
 import sonilab.halt
 from sonilab import osc_receive, event
 import params
-import sonilab.get_ip
 import ip_send as ip
 import lib.din as din
-import xyzSpeedometer as xyzMeter
-import speedoMeter as meter
-
-
+import wait_ip
 #DEVICE SETUP
 DIN_MAX_NUM = 8
 DIN_CH_MIN = 0
@@ -51,21 +43,21 @@ ACC_TAPPED_STATE = 1
 ACC_AXIS_MAX = 3
 ACC_AXIS_MIN = 0
 
+
 #Instanciates
 interval = 0.1
 waiting = 1
 
 #Instanciates
 metro = sonilab.sl_metro.Metro(interval)
-ip_check_interval = sonilab.sl_metro.Metro(interval)
 receiver = osc_receive.OscReceive(57138)
 sender = osc.slOscSend(params.ip, params.port)
+
 
 #OSC SETUP
 ADR_DIN = "/ch1"
 ADR_ADC = "/ch2"
 ADR_ACC = "/ch3"
-
 #RECEIVE
 def halt(vals):
   print "halt was invoked"
@@ -76,18 +68,19 @@ event.add("/halt",halt)
 receiver.setup("/halt")
 
 
+
 if __name__ == '__main__':
-
-  print 'mCell is booting ...'
-  acc.init()
-# wait for ip to avoid osc error
-  sonilab.get_ip.waiting("wlan0")
-
-
-
+  print 'Hi mCell is here'
+  while wait_ip.param("wlan0") == False:
+      print 'waiting for ip'
+      time.sleep(1)
+  print 'IP is ready. My IP is : ',
+  print wait_ip.param("wlan0")
+  time.sleep(5)
 
   try:
     din.initGPIO()
+
 
     while True:
 
@@ -110,14 +103,9 @@ if __name__ == '__main__':
           sender.send(ADR_ADC,ch, val)
         #measure acc
         xyz = acc.measure()
-        for ch in range(ACC_AXIS_MIN, ACC_AXIS_MAX):
-          sender.send(ADR_ACC, ch, xyz[ch])
-        #measure speed
-        xyzSpeed = xyzMeter.getSpeed(xyz)
-        for ch in range(ACC_AXIS_MIN, ACC_AXIS_MAX):
-          sender.send(ADR_ACC, ch + 4, xyzSpeed[ch])
-        speed = meter.getSpeed(xyzSpeed)
-        sender.send(ADR_ACC, 7, speed)
+        for i in range(ACC_AXIS_MIN, ACC_AXIS_MAX):
+          sender.send(ADR_ACC, i, xyz[i])
+
 
   except KeyboardInterrupt:
       receiver.terminate()
